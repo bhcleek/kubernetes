@@ -478,7 +478,7 @@ func NewGenericServerResponse(code int, verb string, qualifiedResource schema.Gr
 // IsNotFound returns true if the specified error was created by NewNotFound.
 // It supports wrapped errors.
 func IsNotFound(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonNotFound
+	return ReasonForError(err) == metav1.StatusReasonNotFound || codeForError(err) == http.StatusNotFound
 }
 
 // IsAlreadyExists determines if the err is an error which indicates that a specified resource already exists.
@@ -490,19 +490,19 @@ func IsAlreadyExists(err error) bool {
 // IsConflict determines if the err is an error which indicates the provided update conflicts.
 // It supports wrapped errors.
 func IsConflict(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonConflict
+	return ReasonForError(err) == metav1.StatusReasonConflict || (!IsAlreadyExists(err) && codeForError(err) == http.StatusConflict)
 }
 
 // IsInvalid determines if the err is an error which indicates the provided resource is not valid.
 // It supports wrapped errors.
 func IsInvalid(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonInvalid
+	return ReasonForError(err) == metav1.StatusReasonInvalid || codeForError(err) == http.StatusUnprocessableEntity
 }
 
 // IsGone is true if the error indicates the requested resource is no longer available.
 // It supports wrapped errors.
 func IsGone(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonGone
+	return ReasonForError(err) == metav1.StatusReasonGone || codeForError(err) == http.StatusGone
 }
 
 // IsResourceExpired is true if the error indicates the resource has expired and the current action is
@@ -515,53 +515,53 @@ func IsResourceExpired(err error) bool {
 // IsNotAcceptable determines if err is an error which indicates that the request failed due to an invalid Accept header
 // It supports wrapped errors.
 func IsNotAcceptable(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonNotAcceptable
+	return ReasonForError(err) == metav1.StatusReasonNotAcceptable || codeForError(err) == http.StatusNotAcceptable
 }
 
 // IsUnsupportedMediaType determines if err is an error which indicates that the request failed due to an invalid Content-Type header
 // It supports wrapped errors.
 func IsUnsupportedMediaType(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonUnsupportedMediaType
+	return ReasonForError(err) == metav1.StatusReasonUnsupportedMediaType || codeForError(err) == http.StatusUnsupportedMediaType
 }
 
 // IsMethodNotSupported determines if the err is an error which indicates the provided action could not
 // be performed because it is not supported by the server.
 // It supports wrapped errors.
 func IsMethodNotSupported(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonMethodNotAllowed
+	return ReasonForError(err) == metav1.StatusReasonMethodNotAllowed || codeForError(err) == http.StatusMethodNotAllowed
 }
 
 // IsServiceUnavailable is true if the error indicates the underlying service is no longer available.
 // It supports wrapped errors.
 func IsServiceUnavailable(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonServiceUnavailable
+	return ReasonForError(err) == metav1.StatusReasonServiceUnavailable || codeForError(err) == http.StatusServiceUnavailable
 }
 
 // IsBadRequest determines if err is an error which indicates that the request is invalid.
 // It supports wrapped errors.
 func IsBadRequest(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonBadRequest
+	return ReasonForError(err) == metav1.StatusReasonBadRequest || codeForError(err) == http.StatusBadRequest
 }
 
 // IsUnauthorized determines if err is an error which indicates that the request is unauthorized and
 // requires authentication by the user.
 // It supports wrapped errors.
 func IsUnauthorized(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonUnauthorized
+	return ReasonForError(err) == metav1.StatusReasonUnauthorized || codeForError(err) == http.StatusUnauthorized
 }
 
 // IsForbidden determines if err is an error which indicates that the request is forbidden and cannot
 // be completed as requested.
 // It supports wrapped errors.
 func IsForbidden(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonForbidden
+	return ReasonForError(err) == metav1.StatusReasonForbidden || codeForError(err) == http.StatusForbidden
 }
 
 // IsTimeout determines if err is an error which indicates that request times out due to long
 // processing.
 // It supports wrapped errors.
 func IsTimeout(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonTimeout
+	return ReasonForError(err) == metav1.StatusReasonTimeout || codeForError(err) == http.StatusGatewayTimeout
 }
 
 // IsServerTimeout determines if err is an error which indicates that the request needs to be retried
@@ -574,33 +574,21 @@ func IsServerTimeout(err error) bool {
 // IsInternalError determines if err is an error which indicates an internal server error.
 // It supports wrapped errors.
 func IsInternalError(err error) bool {
-	return ReasonForError(err) == metav1.StatusReasonInternalError
+	return ReasonForError(err) == metav1.StatusReasonInternalError || codeForError(err) == http.StatusInternalServerError
 }
 
 // IsTooManyRequests determines if err is an error which indicates that there are too many requests
 // that the server cannot handle.
 // It supports wrapped errors.
 func IsTooManyRequests(err error) bool {
-	if ReasonForError(err) == metav1.StatusReasonTooManyRequests {
-		return true
-	}
-	if status := APIStatus(nil); errors.As(err, &status) {
-		return status.Status().Code == http.StatusTooManyRequests
-	}
-	return false
+	return ReasonForError(err) == metav1.StatusReasonTooManyRequests || codeForError(err) == http.StatusTooManyRequests
 }
 
 // IsRequestEntityTooLargeError determines if err is an error which indicates
 // the request entity is too large.
 // It supports wrapped errors.
 func IsRequestEntityTooLargeError(err error) bool {
-	if ReasonForError(err) == metav1.StatusReasonRequestEntityTooLarge {
-		return true
-	}
-	if status := APIStatus(nil); errors.As(err, &status) {
-		return status.Status().Code == http.StatusRequestEntityTooLarge
-	}
-	return false
+	return ReasonForError(err) == metav1.StatusReasonRequestEntityTooLarge || codeForError(err) == http.StatusRequestEntityTooLarge
 }
 
 // IsUnexpectedServerError returns true if the server response was not in the expected API format,
@@ -651,6 +639,15 @@ func ReasonForError(err error) metav1.StatusReason {
 		return status.Status().Reason
 	}
 	return metav1.StatusReasonUnknown
+}
+
+func codeForError(err error) int32 {
+	var code int32
+	if status := APIStatus(nil); errors.As(err, &status) {
+		code = status.Status().Code
+	}
+
+	return code
 }
 
 // ErrorReporter converts generic errors into runtime.Object errors without
