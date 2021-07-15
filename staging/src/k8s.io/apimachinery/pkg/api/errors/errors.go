@@ -705,7 +705,11 @@ func IsTooManyRequests(err error) bool {
 	if reason == metav1.StatusReasonTooManyRequests {
 		return true
 	}
-	if _, ok := knownReasons[reason]; !ok && code == http.StatusTooManyRequests {
+
+	// IsTooManyRequests' checking of code predates the checking of the code in
+	// the other Is* functions. In order to maintain backward compatibility, this
+	// does not check that the reason is unknown.
+	if code == http.StatusTooManyRequests {
 		return true
 	}
 	return false
@@ -719,7 +723,11 @@ func IsRequestEntityTooLargeError(err error) bool {
 	if reason == metav1.StatusReasonRequestEntityTooLarge {
 		return true
 	}
-	if _, ok := knownReasons[reason]; !ok && code == http.StatusRequestEntityTooLarge {
+
+	// IsRequestEntityTooLargeError's checking of code predates the checking of
+	// the code in the other Is* functions. In order to maintain backward
+	// compatibility, this does not check that the reason is unknown.
+	if code == http.StatusRequestEntityTooLarge {
 		return true
 	}
 	return false
